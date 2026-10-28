@@ -1,198 +1,304 @@
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 
-#define ALPHABET_SIZE 26
+typedef struct Node {
+    int key;
+    int height;
+    struct Node *left;
+    struct Node *right;
+} Node;
 
-/* Trie Node */
-typedef struct TrieNode
-{
-struct TrieNode *children[ALPHABET_SIZE];
-int isEndOfWord;
-} TrieNode;
-
-/* Create a new Trie node */
-TrieNode *createNode()
-{
-TrieNode *newNode = (TrieNode *)malloc(sizeof(TrieNode));
-
-newNode->isEndOfWord = 0;
-
-for (int i = 0; i < ALPHABET_SIZE; i++)
-newNode->children[i] = NULL;
-
-return newNode;
+int height(Node *node) {
+    if (node == NULL)
+        return 0;
+    return node->height;
 }
 
-/* Insert a word into Trie */
-void insert(TrieNode *root, char word[])
-{
-TrieNode *current = root;
-
-for (int i = 0; word[i] != '\0'; i++)
-{
-int index = word[i] - 'a';
-
-if (current->children[index] == NULL)
-current->children[index] = createNode();
-
-current = current->children[index];
+int max(int a, int b) {
+    return (a > b) ? a : b;
 }
 
-current->isEndOfWord = 1;
+Node *createNode(int key) {
+    Node *newNode = malloc(sizeof(Node));
 
-printf("Word inserted successfully.\n");
+    if (newNode == NULL) {
+        printf("Memory allocation failed.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    newNode->key = key;
+    newNode->height = 1;
+    newNode->left = NULL;
+    newNode->right = NULL;
+
+    return newNode;
 }
 
-/* Search for a complete word */
-int search(TrieNode *root, char word[])
-{
-TrieNode *current = root;
+int getBalance(Node *node) {
+    if (node == NULL)
+        return 0;
 
-for (int i = 0; word[i] != '\0'; i++)
-{
-int index = word[i] - 'a';
-
-if (current->children[index] == NULL)
-return 0;
-
-current = current->children[index];
+    return height(node->left) - height(node->right);
 }
 
-return current->isEndOfWord;
+Node *rightRotate(Node *y) {
+    Node *x = y->left;
+    Node *temp = x->right;
+
+    x->right = y;
+    y->left = temp;
+
+    y->height = 1 + max(height(y->left), height(y->right));
+    x->height = 1 + max(height(x->left), height(x->right));
+
+    return x;
 }
 
-/* Display words recursively */
-void displayWords(TrieNode *root, char word[], int depth)
-{
-if (root->isEndOfWord)
-{
-word[depth] = '\0';
-printf("%s\n", word);
+Node *leftRotate(Node *x) {
+    Node *y = x->right;
+    Node *temp = y->left;
+
+    y->left = x;
+    x->right = temp;
+
+    x->height = 1 + max(height(x->left), height(x->right));
+    y->height = 1 + max(height(y->left), height(y->right));
+
+    return y;
 }
 
-for (int i = 0; i < ALPHABET_SIZE; i++)
-{
-if (root->children[i] != NULL)
-{
-word[depth] = 'a' + i;
-displayWords(root->children[i], word, depth + 1);
-}
-}
-}
+Node *insert(Node *root, int key) {
+    if (root == NULL)
+        return createNode(key);
 
-/* Autocomplete */
-void autocomplete(TrieNode *root, char prefix[])
-{
-TrieNode *current = root;
+    if (key < root->key)
+        root->left = insert(root->left, key);
+    else if (key > root->key)
+        root->right = insert(root->right, key);
+    else
+        return root;
 
-/* Move through the Trie according to prefix */
-for (int i = 0; prefix[i] != '\0'; i++)
-{
-int index = prefix[i] - 'a';
+    root->height = 1 + max(height(root->left), height(root->right));
 
-if (current->children[index] == NULL)
-{
-printf("No words found with prefix \"%s\".\n", prefix);
-return;
-}
+    int balance = getBalance(root);
 
-current = current->children[index];
-}
+    if (balance > 1 && key < root->left->key)
+        return rightRotate(root);
 
-char word[100];
+    if (balance < -1 && key > root->right->key)
+        return leftRotate(root);
 
-strcpy(word, prefix);
+    if (balance > 1 && key > root->left->key) {
+        root->left = leftRotate(root->left);
+        return rightRotate(root);
+    }
 
-printf("Words starting with \"%s\":\n", prefix);
+    if (balance < -1 && key < root->right->key) {
+        root->right = rightRotate(root->right);
+        return leftRotate(root);
+    }
 
-displayWords(current, word, strlen(prefix));
+    return root;
 }
 
-/* Main function */
-int main()
-{
-TrieNode *root = createNode();
+Node *minValueNode(Node *node) {
+    Node *current = node;
 
-int choice;
-char word[100];
+    while (current->left != NULL)
+        current = current->left;
 
-while (1)
-{
-printf("\n\n==============================\n");
-printf(" TRIE\n");
-
-printf("==============================\n");
-printf("1. Insert Word\n");
-printf("2. Search Word\n");
-printf("3. Autocomplete\n");
-printf("4. Display All Words\n");
-printf("5. Exit\n");
-printf("==============================\n");
-
-printf("Enter your choice: ");
-scanf("%d", &choice);
-
-switch (choice)
-{
-case 1:
-
-printf("Enter word: ");
-scanf("%s", word);
-
-for (int i = 0; word[i] != '\0'; i++)
-word[i] = tolower(word[i]);
-
-insert(root, word);
-break;
-
-case 2:
-
-printf("Enter word to search: ");
-scanf("%s", word);
-
-for (int i = 0; word[i] != '\0'; i++)
-word[i] = tolower(word[i]);
-
-if (search(root, word))
-printf("Word found.\n");
-else
-printf("Word not found.\n");
-
-break;
-
-case 3:
-
-printf("Enter prefix: ");
-scanf("%s", word);
-
-for (int i = 0; word[i] != '\0'; i++)
-word[i] = tolower(word[i]);
-
-autocomplete(root, word);
-break;
-
-case 4:
-{
-char result[100];
-
-printf("\nAll words in Trie:\n");
-displayWords(root, result, 0);
-
-break;
+    return current;
 }
 
-case 5:
+Node *deleteNode(Node *root, int key) {
+    if (root == NULL)
+        return NULL;
 
-printf("Program terminated.\n");
-return 0;
+    if (key < root->key) {
+        root->left = deleteNode(root->left, key);
+    } else if (key > root->key) {
+        root->right = deleteNode(root->right, key);
+    } else {
+        if (root->left == NULL || root->right == NULL) {
+            Node *temp = root->left ? root->left : root->right;
 
-default:
+            if (temp == NULL) {
+                free(root);
+                return NULL;
+            } else {
+                Node *oldRoot = root;
+                root = temp;
+                free(oldRoot);
+            }
+        } else {
+            Node *temp = minValueNode(root->right);
 
-printf("Invalid choice.\n");
+            root->key = temp->key;
+            root->right = deleteNode(root->right, temp->key);
+        }
+    }
+
+    if (root == NULL)
+        return NULL;
+
+    root->height = 1 + max(height(root->left), height(root->right));
+
+    int balance = getBalance(root);
+
+    if (balance > 1 && getBalance(root->left) >= 0)
+        return rightRotate(root);
+
+    if (balance > 1 && getBalance(root->left) < 0) {
+        root->left = leftRotate(root->left);
+        return rightRotate(root);
+    }
+
+    if (balance < -1 && getBalance(root->right) <= 0)
+        return leftRotate(root);
+
+    if (balance < -1 && getBalance(root->right) > 0) {
+        root->right = rightRotate(root->right);
+        return leftRotate(root);
+    }
+
+    return root;
 }
+
+Node *search(Node *root, int key) {
+    if (root == NULL || root->key == key)
+        return root;
+
+    if (key < root->key)
+        return search(root->left, key);
+
+    return search(root->right, key);
 }
 
-return 0;
+void inorder(Node *root) {
+    if (root != NULL) {
+        inorder(root->left);
+        printf("%d ", root->key);
+        inorder(root->right);
+    }
+}
+
+void preorder(Node *root) {
+    if (root != NULL) {
+        printf("%d ", root->key);
+        preorder(root->left);
+        preorder(root->right);
+    }
+}
+
+void freeTree(Node *root) {
+    if (root != NULL) {
+        freeTree(root->left);
+        freeTree(root->right);
+        free(root);
+    }
+}
+
+int main(void) {
+    Node *root = NULL;
+    int choice, key;
+
+    while (1) {
+        printf("\n\n========================\n");
+        printf("        AVL TREE\n");
+        printf("========================\n");
+        printf("1. Insert\n");
+        printf("2. Delete\n");
+        printf("3. Search\n");
+        printf("4. Inorder Traversal\n");
+        printf("5. Preorder Traversal\n");
+        printf("6. Exit\n");
+        printf("========================\n");
+        printf("Enter your choice: ");
+
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input. Enter a number.\n");
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF)
+                ;
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                printf("Enter key to insert: ");
+
+                if (scanf("%d", &key) != 1) {
+                    printf("Invalid key.\n");
+                    int ch;
+                    while ((ch = getchar()) != '\n' && ch != EOF)
+                        ;
+                    break;
+                }
+
+                if (search(root, key) != NULL) {
+                    printf("Duplicate key not allowed.\n");
+                } else {
+                    root = insert(root, key);
+                    printf("Key inserted successfully.\n");
+                }
+                break;
+
+            case 2:
+                printf("Enter key to delete: ");
+
+                if (scanf("%d", &key) != 1) {
+                    printf("Invalid key.\n");
+                    int ch;
+                    while ((ch = getchar()) != '\n' && ch != EOF)
+                        ;
+                    break;
+                }
+
+                if (search(root, key) == NULL) {
+                    printf("Key not found.\n");
+                } else {
+                    root = deleteNode(root, key);
+                    printf("Key deleted successfully.\n");
+                }
+                break;
+
+            case 3:
+                printf("Enter key to search: ");
+
+                if (scanf("%d", &key) != 1) {
+                    printf("Invalid key.\n");
+                    int ch;
+                    while ((ch = getchar()) != '\n' && ch != EOF)
+                        ;
+                    break;
+                }
+
+                if (search(root, key) != NULL)
+                    printf("Key found.\n");
+                else
+                    printf("Key not found.\n");
+                break;
+
+            case 4:
+                printf("Inorder traversal: ");
+                inorder(root);
+                printf("\n");
+                break;
+
+            case 5:
+                printf("Preorder traversal: ");
+                preorder(root);
+                printf("\n");
+                break;
+
+            case 6:
+                freeTree(root);
+                printf("Program terminated.\n");
+                return 0;
+
+            default:
+                printf("Invalid choice.\n");
+        }
+    }
 }
